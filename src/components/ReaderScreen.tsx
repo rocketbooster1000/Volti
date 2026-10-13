@@ -305,7 +305,6 @@ export function ReaderScreen({ score, onClose }: ReaderScreenProps) {
       const count = pageCountRef.current;
       return Math.min(count, Math.max(1, current + delta));
     });
-    setChromeOn(true);
   }
 
   useEffect(() => {
