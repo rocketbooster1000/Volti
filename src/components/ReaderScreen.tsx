@@ -89,7 +89,6 @@ export function ReaderScreen({ score, onClose }: ReaderScreenProps) {
       const delta = direction === "next" ? 1 : -1;
       return Math.min(count, Math.max(1, current + delta));
     });
-    setChromeOn(true);
   });
   const handsLabel =
     !hands.enabled && !hands.notice
