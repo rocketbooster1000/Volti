@@ -8,6 +8,7 @@ import {
   type PageRender,
 } from "../lib/pdf.ts";
 import { markOpened, readPdfBytes, saveLastPage } from "../lib/scores.ts";
+import { useHandsFree, type HandsFreeStatus } from "../lib/useHandsFree.ts";
 import { useWakeLock } from "../lib/useWakeLock.ts";
 import type { ScoreRecord } from "../types.ts";
 
@@ -28,6 +29,19 @@ type Box = {
 
 function cacheKey(pageNumber: number, box: Box, pixelRatio: number): string {
   return `${pageNumber}:${Math.round(box.width)}x${Math.round(box.height)}@${pixelRatio}`;
+}
+
+function handsFreeLabel(
+  status: HandsFreeStatus,
+  faceSeen: boolean,
+  notice: string | null,
+): string | null {
+  if (notice) return notice;
+  if (status === "starting") return "Starting the camera…";
+  if (status === "calibrating") return faceSeen ? "Look at the page." : "Can't see you";
+  if (status === "lost") return "Can't see you";
+  if (status === "on") return "Camera on";
+  return null;
 }
 
 function contentBox(element: HTMLElement): Box {
@@ -68,6 +82,20 @@ export function ReaderScreen({ score, onClose }: ReaderScreenProps) {
   });
 
   useWakeLock(phase !== "error");
+
+  const hands = useHandsFree((direction) => {
+    setPage((current) => {
+      const count = pageCountRef.current;
+      const delta = direction === "next" ? 1 : -1;
+      return Math.min(count, Math.max(1, current + delta));
+    });
+    setChromeOn(true);
+  });
+  const handsLabel =
+    !hands.enabled && !hands.notice
+      ? null
+      : handsFreeLabel(hands.status, hands.faceSeen, hands.notice);
+  const showConfirm = hands.status === "calibrating" && hands.faceSeen && !hands.notice;
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -169,9 +197,10 @@ export function ReaderScreen({ score, onClose }: ReaderScreenProps) {
 
   useEffect(() => {
     if (!chromeOn) return;
+    if (hands.status === "calibrating" || hands.status === "starting") return;
     const timer = window.setTimeout(() => setChromeOn(false), 3200);
     return () => window.clearTimeout(timer);
-  }, [chromeOn, page]);
+  }, [chromeOn, page, hands.status]);
 
   useEffect(() => {
     const opened = pdfRef.current;
@@ -384,16 +413,64 @@ export function ReaderScreen({ score, onClose }: ReaderScreenProps) {
             <h1 className="min-w-0 flex-1 truncate text-center font-serif text-lg">
               {score.title}
             </h1>
-            <span className="w-16 shrink-0" />
+            {hands.supported ? (
+              <button
+                type="button"
+                data-testid="hands-free-toggle"
+                aria-pressed={hands.enabled}
+                className={`shrink-0 rounded-full border px-3 py-2 text-sm ${hands.enabled ? "border-brass bg-brass text-black" : "border-white/20 text-ink"} ${chromeOn ? "pointer-events-auto" : "pointer-events-none"}`}
+                onClick={() => {
+                  hands.toggle();
+                  setChromeOn(true);
+                }}
+              >
+                Hands-free
+              </button>
+            ) : (
+              <span className="w-16 shrink-0" />
+            )}
           </div>
           <div className="bg-gradient-to-t from-black via-black/80 to-transparent px-4 pt-10 pb-[max(0.85rem,env(safe-area-inset-bottom))] text-center">
-            <p
-              data-testid="page-indicator"
-              aria-label={`Page ${page} of ${pageCount}`}
-              className="text-sm tracking-[0.2em] tabular-nums text-ink"
-            >
-              {page} / {pageCount}
-            </p>
+            <div className="flex items-center justify-center gap-4">
+              <p
+                data-testid="page-indicator"
+                aria-label={`Page ${page} of ${pageCount}`}
+                className="text-sm tracking-[0.2em] tabular-nums text-ink"
+              >
+                {page} / {pageCount}
+              </p>
+              {hands.canRecalibrate && (
+                <button
+                  type="button"
+                  data-testid="recalibrate"
+                  className={`rounded-full border border-white/20 px-3 py-1.5 text-xs text-ink ${chromeOn ? "pointer-events-auto" : "pointer-events-none"}`}
+                  onClick={() => {
+                    hands.recalibrate();
+                    setChromeOn(true);
+                  }}
+                >
+                  Recalibrate
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phase !== "error" && handsLabel && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+3.5rem))] z-10 flex justify-center px-4">
+          <div className="flex max-w-xs items-center gap-2 rounded-full bg-black/75 px-3 py-1.5 text-center text-xs text-ink">
+            <p data-testid="hands-free-status">{handsLabel}</p>
+            {showConfirm && (
+              <button
+                type="button"
+                data-testid="confirm-center"
+                className="pointer-events-auto rounded-full bg-brass px-3 py-1 text-xs font-medium text-black"
+                onClick={() => hands.confirmCenter()}
+              >
+                Confirm
+              </button>
+            )}
           </div>
         </div>
       )}
