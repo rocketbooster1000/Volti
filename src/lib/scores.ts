@@ -1,6 +1,7 @@
 import { deleteScoreMeta, getAllScores, getScore, putScore } from "./db.ts";
 import { isPasswordError, openPdf, renderThumbnail } from "./pdf.ts";
 import { readPdfBlob, readThumbnailBlob, removeScoreBytes, storeScoreBytes } from "./storage.ts";
+import { randomUuid } from "./uuid.ts";
 import type { LibraryScore, ScoreRecord } from "../types.ts";
 
 let writeQueue: Promise<void> = Promise.resolve();
@@ -82,7 +83,7 @@ export async function importScore(file: File): Promise<ScoreRecord> {
     }
     const now = Date.now();
     const record: ScoreRecord = {
-      id: crypto.randomUUID(),
+      id: randomUuid(),
       title: titleFromFileName(file.name),
       pageCount: pdf.numPages,
       lastPage: 1,

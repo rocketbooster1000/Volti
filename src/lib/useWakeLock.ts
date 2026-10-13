@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export function useWakeLock(active: boolean): void {
   useEffect(() => {
-    if (!active || !("wakeLock" in navigator)) return;
+    if (!active || typeof navigator.wakeLock?.request !== "function") return;
     let released = false;
     let sentinel: WakeLockSentinel | null = null;
 
@@ -10,12 +10,12 @@ export function useWakeLock(active: boolean): void {
       try {
         const next = await navigator.wakeLock.request("screen");
         if (released) {
-          await next.release();
+          await next.release().catch(() => undefined);
           return;
         }
         sentinel = next;
       } catch {
-        // Reading still works if the browser refuses the lock.
+        // Plain HTTP and older Safari have no wake lock. Reading still works.
       }
     };
 
@@ -28,7 +28,7 @@ export function useWakeLock(active: boolean): void {
     return () => {
       released = true;
       document.removeEventListener("visibilitychange", onVisibility);
-      void sentinel?.release();
+      void sentinel?.release().catch(() => undefined);
       sentinel = null;
     };
   }, [active]);
