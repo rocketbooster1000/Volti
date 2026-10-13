@@ -1,0 +1,13 @@
+﻿---
+description: Locked decisions for the Volti sheet music reader
+alwaysApply: true
+---
+
+# Volti
+
+Client-only web app for iPhone and iPad. Vite, React, TypeScript, Tailwind. No server and no Next.js. Full plan: `docs/sheet-music-reader-plan.md`.
+
+- PDFs stay in the browser (OPFS or IndexedDB). Import with a file input. PDF.js is bundled. No CDN, no account, no API keys, and no network calls from the running app.
+- V1 is only the library and the single-page swipe reader: swipe left for next, right for previous, tap zones, black surround, wake lock, resume at the last page. No setlists, annotations, pedal, sync, or hands-free camera in v1.
+- Hands-free is milestone 2: front camera and a face-landmark model shipped in the app. A yaw to the right is next, left is previous. Swipe still works with the camera off. No Web Speech.
+- Opening the HTML file from disk will not run the service worker or the camera. Judge install, wake lock, and camera over HTTPS.
